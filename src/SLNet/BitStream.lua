@@ -1,159 +1,89 @@
+local sizes = {
+  [UINT8] = 1, [UINT16] = 2, [UINT32] = 4,
+  [INT8] = 1, [INT16] = 2, [INT32] = 4,
+  [FLOAT] = 4, [BOOL] = 1
+}
+local function get_size(srcType)
+  return sizes[srcType] or 0
+end
+
+local BSClass =
+{
+  WritePointer = 1,
+  ReadPointer = 1,
+  BytesData = '',
+  __tostring = function()
+    return 'BitStream'
+  end
+}
+
+function BSClass:getReadPointer() return self.ReadPointer end
+function BSClass:getWritePointer() return self.WritePointer end
+function BSClass:export() return self.BytesData end
+function BSClass:import(bytes)
+  bytes = type(bytes) == 'string' and bytes or '\0'
+  local wpointer = self.WritePointer
+  local saveData = string.sub(self.BytesData, wpointer, #self.BytesData)
+  self.BytesData = string.sub(self.BytesData, 0, wpointer - 1)
+  self.BytesData = self.BytesData .. bytes .. saveData
+  return self
+end
+function BSClass:write(srcType, src)
+  local wpointer = self.WritePointer
+  local saveData = string.sub(self.BytesData, wpointer, #self.BytesData)
+  self.BytesData = string.sub(self.BytesData, 0, wpointer - 1)
+  if srcType >= UINT8 and srcType <= FLOAT then
+    src = type(src) == 'number' and src or 0
+    self.BytesData = self.BytesData
+    .. BitCoder:encode(srcType, src)
+    self.WritePointer = self.WritePointer + get_size(srcType)
+  elseif srcType == BOOL then
+    src = type(src) == 'boolean' and src or false
+    self.BytesData = self.BytesData
+    .. BitCoder:encode(srcType, src)
+    self.WritePointer = self.WritePointer + get_size(srcType)
+  elseif srcType == STRING then
+    src = type(src) == 'string' and src or '\0'
+    self.BytesData = self.BytesData .. src
+    self.WritePointer = self.WritePointer + #src
+  end
+  self.BytesData = self.BytesData .. saveData
+  return self
+end
+function BSClass:read(srcType, src)
+  local part, rpointer = '', self.ReadPointer
+  if srcType >= UINT8 and srcType <= BOOL then
+    self.ReadPointer = self.ReadPointer + get_size(srcType)
+    part = string.sub(self.BytesData, rpointer, self.ReadPointer - 1)
+  elseif srcType == STRING then
+    self.ReadPointer = self.ReadPointer + tonumber(src)
+    part = string.sub(self.BytesData, rpointer, self.ReadPointer - 1)
+  end; return BitCoder:decode(srcType, part)
+end
+function BSClass:setReadPointer(pos)
+  pos = type(pos) == 'number' and pos or 1
+  if pos < 1 then pos = 1 end
+  self.ReadPointer = pos
+  return self
+end
+function BSClass:setWritePointer(pos)
+  pos = type(pos) == 'number' and pos or 1
+  if pos < 1 then pos = 1 end
+  self.WritePointer = pos
+  return self
+end
+
+BSClass.__index = BSClass
+
 local BitStream = {}
-
-BitStream.UINT8 = 0; BitStream.UINT16 = 1; BitStream.UINT32 = 2;
-BitStream.INT8 = 3; BitStream.INT16 = 4; BitStream.INT32 = 5;
-BitStream.FLOAT = 6; BitStream.BOOL = 7; BitStream.STRING = 8;
-
 function BitStream:new(bytes)
-  local bitStream =
-  {
-    WritePointer = 1,
-    ReadPointer = 1,
-    BytesData = '',
-    BSCheckPoint = true
-  }
-
-  if type(bytes) == 'string' then
-    bitStream.BytesData = bytes
-    bitStream.ReadPointer = #bytes + 1
-    bitStream.WritePointer = #bytes + 1
-  end
-
-  function bitStream:import(bytes)
+  local temp = {}
+  if bytes then
     bytes = type(bytes) == 'string' and bytes or '\0'
-
-    local wpointer = bitStream.WritePointer
-    local saveData = string.sub(bitStream.BytesData, wpointer, #bitStream.BytesData)
-    bitStream.BytesData = string.sub(bitStream.BytesData, 0, wpointer - 1)
-    bitStream.BytesData = bitStream.BytesData .. bytes .. saveData
-
-    return bitStream
+    temp.BytesData = bytes
   end
-  function bitStream:export()
-    return bitStream.BytesData
-  end
-
-  function bitStream:setReadPointer(pos)
-    pos = type(pos) == 'number' and pos or 1
-    if pos < 1 then pos = 1 end
-    bitStream.ReadPointer = pos
-    return bitStream
-  end
-  function bitStream:setWritePointer(pos)
-    pos = type(pos) == 'number' and pos or 1
-    if pos < 1 then pos = 1 end
-    bitStream.WritePointer = pos
-    return bitStream
-  end
-
-  function bitStream.getReadPointer()
-    return bitStream.ReadPointer
-  end
-  function bitStream.getWritePointer()
-    return bitStream.WritePointer
-  end
-
-  function bitStream:write(srcType, src)
-    local wpointer = bitStream.WritePointer
-    local saveData = string.sub(bitStream.BytesData, wpointer, #bitStream.BytesData)
-    bitStream.BytesData = string.sub(bitStream.BytesData, 0, wpointer - 1)
-
-    if srcType == BitStream.UINT8 then
-      src = type(src) == 'number' and src or 0
-      bitStream.BytesData = bitStream.BytesData
-      .. BitCoder:encode(BitStream.UINT8, src)
-      bitStream.WritePointer = bitStream.WritePointer + 1
-    elseif srcType == BitStream.UINT16 then
-      src = type(src) == 'number' and src or 0
-      bitStream.BytesData = bitStream.BytesData
-      .. BitCoder:encode(BitStream.UINT16, src)
-      bitStream.WritePointer = bitStream.WritePointer + 2
-    elseif srcType == BitStream.UINT32 then
-      src = type(src) == 'number' and src or 0
-      bitStream.BytesData = bitStream.BytesData
-      .. BitCoder:encode(BitStream.UINT32, src)
-      bitStream.WritePointer = bitStream.WritePointer + 4
-    elseif srcType == BitStream.INT8 then
-      src = type(src) == 'number' and src or 0
-      bitStream.BytesData = bitStream.BytesData
-      .. BitCoder:encode(BitStream.INT8, src)
-      bitStream.WritePointer = bitStream.WritePointer + 1
-    elseif srcType == BitStream.INT16 then
-      src = type(src) == 'number' and src or 0
-      bitStream.BytesData = bitStream.BytesData
-      .. BitCoder:encode(BitStream.INT16, src)
-      bitStream.WritePointer = bitStream.WritePointer + 2
-    elseif srcType == BitStream.INT32 then
-      src = type(src) == 'number' and src or 0
-      bitStream.BytesData = bitStream.BytesData
-      .. BitCoder:encode(BitStream.INT32, src)
-      bitStream.WritePointer = bitStream.WritePointer + 4
-    elseif srcType == BitStream.FLOAT then
-      src = type(src) == 'number' and src or 0.0
-      local res = BitCoder:encode(BitStream.FLOAT, src)
-      bitStream.BytesData = bitStream.BytesData .. res
-      bitStream.WritePointer = bitStream.WritePointer + #res
-    elseif srcType == BitStream.BOOL then
-      src = type(src) == 'boolean' and src or false
-      bitStream.BytesData = bitStream.BytesData
-      .. BitCoder:encode(BitStream.BOOL, src)
-      bitStream.WritePointer = bitStream.WritePointer + 1
-    elseif srcType == BitStream.STRING then
-      src = type(src) == 'string' and src or '\0'
-      bitStream.BytesData = bitStream.BytesData .. src
-      bitStream.WritePointer = bitStream.WritePointer + #src
-    end
-
-    bitStream.BytesData = bitStream.BytesData .. saveData
-    return bitStream
-  end
-
-  function bitStream:read(srcType, src) -- for example, bitStream:read(BitStream.STRING, 15(string len))
-    local rpointer = bitStream.ReadPointer
-
-    if srcType == BitStream.UINT8 then
-      bitStream.ReadPointer = bitStream.ReadPointer + 1
-      local part = string.sub(bitStream.BytesData, rpointer, bitStream.ReadPointer - 1)
-      return BitCoder:decode(BitStream.UINT8, part)
-    elseif srcType == BitStream.UINT16 then
-      bitStream.ReadPointer = bitStream.ReadPointer + 2
-      local part = string.sub(bitStream.BytesData, rpointer, bitStream.ReadPointer - 1)
-      return BitCoder:decode(BitStream.UINT16, part)
-    elseif srcType == BitStream.UINT32 then
-      bitStream.ReadPointer = bitStream.ReadPointer + 4
-      local part = string.sub(bitStream.BytesData, rpointer, bitStream.ReadPointer - 1)
-      return BitCoder:decode(BitStream.UINT32, part)
-    elseif srcType == BitStream.INT8 then
-      bitStream.ReadPointer = bitStream.ReadPointer + 1
-      local part = string.sub(bitStream.BytesData, rpointer, bitStream.ReadPointer - 1)
-      return BitCoder:decode(BitStream.INT8, part)
-    elseif srcType == BitStream.INT16 then
-      bitStream.ReadPointer = bitStream.ReadPointer + 2
-      local part = string.sub(bitStream.BytesData, rpointer, bitStream.ReadPointer - 1)
-      return BitCoder:decode(BitStream.INT16, part)
-    elseif srcType == BitStream.INT32 then
-      bitStream.ReadPointer = bitStream.ReadPointer + 4
-      local part = string.sub(bitStream.BytesData, rpointer, bitStream.ReadPointer - 1)
-      return BitCoder:decode(BitStream.INT32, part)
-    elseif srcType == BitStream.FLOAT then
-      bitStream.ReadPointer = bitStream.ReadPointer + 4
-      local part = string.sub(bitStream.BytesData, rpointer, bitStream.ReadPointer - 1)
-      return BitCoder:decode(BitStream.FLOAT, part)
-    elseif srcType == BitStream.BOOL then
-      bitStream.ReadPointer = bitStream.ReadPointer + 1
-      local part = string.sub(bitStream.BytesData, rpointer, bitStream.ReadPointer - 1)
-      return BitCoder:decode(BitStream.BOOL, part)
-    elseif srcType == BitStream.STRING then
-      src = type(src) == 'number' and src or 1
-      bitStream.ReadPointer = bitStream.ReadPointer + src
-      local part = string.sub(bitStream.BytesData, rpointer, bitStream.ReadPointer - 1)
-      return BitCoder:decode(BitStream.STRING, part)
-    end
-
-    return 0
-  end
-
-  return bitStream
+  setmetatable(temp, BSClass)
+  return temp
 end
 
 return BitStream

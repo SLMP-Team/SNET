@@ -14,7 +14,7 @@ function SLPeer.SLNetSend(handle, packetID, bitStream, priority)
   if not bitStream then
     bitStream = BitStream:new()
   end
-  if not bitStream.BSCheckPoint then
+  if tostring(bitStream) ~= 'BitStream' then
     error('SLPeer::SLNetSend: Argument #2: bitstream argument should be filled by SL:BitStream!')
     return false
   end
