@@ -1,89 +1,98 @@
-local sizes = {
-  [UINT8] = 1, [UINT16] = 2, [UINT32] = 4,
-  [INT8] = 1, [INT16] = 2, [INT32] = 4,
-  [FLOAT] = 4, [BOOL] = 1
-}
-local function get_size(srcType)
-  return sizes[srcType] or 0
-end
+local bit_stream = {}
 
-local BSClass =
-{
-  WritePointer = 1,
-  ReadPointer = 1,
-  BytesData = '',
-  __tostring = function()
-    return 'BitStream'
-  end
+local types_size = {
+  [0] = 1, [1] = 2,
+  [2] = 4, [3] = 1,
+  [4] = 2, [5] = 4,
+  [6] = 4, [7] = 1
 }
 
-function BSClass:getReadPointer() return self.ReadPointer end
-function BSClass:getWritePointer() return self.WritePointer end
-function BSClass:export() return self.BytesData end
-function BSClass:import(bytes)
-  bytes = type(bytes) == 'string' and bytes or '\0'
-  local wpointer = self.WritePointer
-  local saveData = string.sub(self.BytesData, wpointer, #self.BytesData)
-  self.BytesData = string.sub(self.BytesData, 0, wpointer - 1)
-  self.BytesData = self.BytesData .. bytes .. saveData
+local bs_class = {
+  bytes = '',
+  read_ptr = 1,
+  write_ptr = 1
+}
+
+function bs_class:setReadPointer(x)
+  x = type(x) == 'number' and x or 1
+  self.read_ptr = x == 0 and 1 or x
   return self
 end
-function BSClass:write(srcType, src)
-  local wpointer = self.WritePointer
-  local saveData = string.sub(self.BytesData, wpointer, #self.BytesData)
-  self.BytesData = string.sub(self.BytesData, 0, wpointer - 1)
-  if srcType >= UINT8 and srcType <= FLOAT then
-    src = type(src) == 'number' and src or 0
-    self.BytesData = self.BytesData
-    .. BitCoder:encode(srcType, src)
-    self.WritePointer = self.WritePointer + get_size(srcType)
-  elseif srcType == BOOL then
-    src = type(src) == 'boolean' and src or false
-    self.BytesData = self.BytesData
-    .. BitCoder:encode(srcType, src)
-    self.WritePointer = self.WritePointer + get_size(srcType)
-  elseif srcType == STRING then
-    src = type(src) == 'string' and src or '\0'
-    self.BytesData = self.BytesData .. src
-    self.WritePointer = self.WritePointer + #src
+function bs_class:setWritePointer(x)
+  x = type(x) == 'number' and x or 1
+  self.write_ptr = x == 0 and 1 or x
+  return self
+end
+function bs_class:export()
+  return self.bytes
+end
+function bs_class:import(x)
+  x = type(x) == 'string' and x or '\0'
+
+  local pointer = self.write_ptr
+  local save_data = self.bytes:sub(pointer, #self.bytes)
+
+  self.bytes = self.bytes:sub(1, pointer - 1)
+  self.bytes = self.bytes .. tostring(x)
+  self.bytes = self.bytes .. save_data
+
+  return self
+end
+function bs_class:write(s_type, s_value)
+  s_type = type(s_type) == 'number' and s_type or 0
+
+  local pointer = self.write_ptr
+  local save_data = self.bytes:sub(pointer, #self.bytes)
+  self.bytes = self.bytes:sub(1, pointer - 1)
+
+  if s_type == 8 then -- string
+    self.bytes = self.bytes .. tostring(s_value)
+    self.write_ptr = self.write_ptr + #tostring(s_value)
+  elseif s_type == 7 then -- boolean
+    s_value = type(s_value) == 'boolean' and s_value or false
+    self.bytes = self.bytes .. BitCoder:encode(s_type, s_value and 1 or 0)
+    self.write_ptr = self.write_ptr + types_size[s_type]
+  else
+    self.bytes = self.bytes .. BitCoder:encode(s_type, s_value)
+    self.write_ptr = self.write_ptr + types_size[s_type]
   end
-  self.BytesData = self.BytesData .. saveData
-  return self
-end
-function BSClass:read(srcType, src)
-  local part, rpointer = '', self.ReadPointer
-  if srcType >= UINT8 and srcType <= BOOL then
-    self.ReadPointer = self.ReadPointer + get_size(srcType)
-    part = string.sub(self.BytesData, rpointer, self.ReadPointer - 1)
-  elseif srcType == STRING then
-    self.ReadPointer = self.ReadPointer + tonumber(src)
-    part = string.sub(self.BytesData, rpointer, self.ReadPointer - 1)
-  end; return BitCoder:decode(srcType, part)
-end
-function BSClass:setReadPointer(pos)
-  pos = type(pos) == 'number' and pos or 1
-  if pos < 1 then pos = 1 end
-  self.ReadPointer = pos
-  return self
-end
-function BSClass:setWritePointer(pos)
-  pos = type(pos) == 'number' and pos or 1
-  if pos < 1 then pos = 1 end
-  self.WritePointer = pos
-  return self
-end
 
-BSClass.__index = BSClass
+  self.bytes = self.bytes .. save_data
+  return self
+end
+function bs_class:read(s_type, s_len)
+  s_type = type(s_type) == 'number' and s_type or 0
+  s_len = type(s_len) == 'number' and s_len or 0
 
-local BitStream = {}
-function BitStream:new(bytes)
-  local temp = {}
-  if bytes then
-    bytes = type(bytes) == 'string' and bytes or '\0'
-    temp.BytesData = bytes
+  s_len = s_type == 8 and s_len or types_size[s_type]
+
+  local pointer = self.read_ptr
+  local s_value = self.bytes:sub(pointer, pointer + s_len)
+
+  self.read_ptr = self.read_ptr + s_len
+
+  if s_type == 8 then
+    return s_value
+  elseif s_type == 7 then
+    s_value = BitCoder:decode(s_type, s_value)
+    s_value = type(s_value) == 'number' and s_value or 0
+    return s_value == 1 and true or false
   end
-  setmetatable(temp, BSClass)
-  return temp
+
+  s_value = BitCoder:decode(s_type, s_value)
+  return s_value
 end
 
-return BitStream
+bs_class.__tostring = function() return 'BitStream' end
+bs_class.__index = bs_class
+
+function bit_stream:new(value)
+  local new_bitstream = {}
+  setmetatable(new_bitstream, bs_class)
+  if type(value) == 'string' then
+    new_bitstream.bytes = value
+  end
+  return new_bitstream
+end
+
+return bit_stream
