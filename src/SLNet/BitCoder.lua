@@ -7,6 +7,24 @@ BitCoder.UINT8 = 0; BitCoder.UINT16 = 1; BitCoder.UINT32 = 2;
 BitCoder.INT8 = 3; BitCoder.INT16 = 4; BitCoder.INT32 = 5;
 BitCoder.FLOAT = 6; BitCoder.BOOL = 7; BitCoder.STRING = 8;
 
+local function fuckLua(x)
+  local y = 0x7FFFFFFF
+  if x >= 0 then
+    return x
+  end
+  local z = y - x
+  return y + z
+end
+
+local function fuckLuaN(x)
+  local y = 0x7FFFFFFF
+  if x <= y then
+    return x
+  end
+  local z = x - (y + 1)
+  return -(y + 1) + z
+end
+
 function BitCoder:decode(srcType, src) -- for example, BitCoder:encode(UINT8, 'A') (result = 128(int))
   if srcType == BitCoder.UINT8 then
     src = type(src) == 'string' and src or BitCoder.ByteEmpty
@@ -21,7 +39,8 @@ function BitCoder:decode(srcType, src) -- for example, BitCoder:encode(UINT8, 'A
     src = type(src) == 'string' and src or BitCoder.ByteEmpty
     if #src ~= 4 then return 0 end
     local b1, b2, b3, b4 = string.byte(src, 1, 4)
-    return bit.bor(bit.lshift(b1, 24), bit.lshift(b2, 16), bit.lshift(b3, 8), b4)
+    b1 = bit.bor(bit.lshift(b1, 24), bit.lshift(b2, 16), bit.lshift(b3, 8), b4)
+    return fuckLua(b1)
   elseif srcType == BitCoder.INT8 then
     src = type(src) == 'string' and src or BitCoder.ByteEmpty
     if #src ~= 1 then return 0 end
@@ -41,7 +60,7 @@ function BitCoder:decode(srcType, src) -- for example, BitCoder:encode(UINT8, 'A
     local b1, b2, b3, b4 = string.byte(src, 1, 4)
     src = bit.bor(bit.lshift(b1, 24), bit.lshift(b2, 16), bit.lshift(b3, 8), b4)
     if src > 0xFFFFFFFF then return 0 end
-    return (src - bit.band(src, 2147483648) * 2)
+    return fuckLuaN(src - bit.band(src, 2147483648) * 2)
   elseif srcType == BitCoder.BOOL then
     src = type(src) == 'string' and src or BitCoder.ByteEmpty
     if #src ~= 1 then return false end
