@@ -46,8 +46,8 @@ function bs_class:write(s_type, s_value)
   self.bytes = self.bytes:sub(1, pointer - 1)
 
   if s_type == 8 then -- string
-    self.bytes = self.bytes .. tostring(s_value)
-    self.write_ptr = self.write_ptr + #tostring(s_value)
+    self.bytes = self.bytes .. s_value
+    self.write_ptr = self.write_ptr + #s_value
   elseif s_type == 7 then -- boolean
     s_value = type(s_value) == 'boolean' and s_value or false
     self.bytes = self.bytes .. BitCoder:encode(s_type, s_value and 1 or 0)
@@ -63,13 +63,12 @@ end
 function bs_class:read(s_type, s_len)
   s_type = type(s_type) == 'number' and s_type or 0
   s_len = type(s_len) == 'number' and s_len or 0
-
-  s_len = s_type == 8 and s_len or types_size[s_type]
+  s_len = (s_type == 8 and s_len or types_size[s_type]) - 1
 
   local pointer = self.read_ptr
   local s_value = self.bytes:sub(pointer, pointer + s_len)
 
-  self.read_ptr = self.read_ptr + s_len
+  self.read_ptr = self.read_ptr + s_len + 1
 
   if s_type == 8 then
     return s_value
