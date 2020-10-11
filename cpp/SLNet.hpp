@@ -1,23 +1,25 @@
 #pragma once
-#define _WINSOCK_DEPRECATED_NO_WARNINGS
 
 #include "BitStream.hpp"
 #if defined(_WIN32)
-#include "Socket.hpp"
-#else
-// fuck no Linux Socket now
+#define _WINSOCK_DEPRECATED_NO_WARNINGS
 #endif
+
+#include "Socket.hpp"
+#include "UNIXSock.h"
+
 
 using callback_receive = std::function<void(unsigned int, BitStream, const char*, unsigned int)>;
 class SLNet
 {
 public:
+	SLNet();
 	void Bind(unsigned short port);
 	void Connect(const char* address, unsigned short port);
 	void SetHook(callback_receive func);
 	void NetLoop();
-	void Send(BitStream* bitstream, const char* address, unsigned short port);
-	void Send(BitStream* bitstream);
+	void Send(unsigned short packet_id, BitStream bitstream, const char* address, unsigned short port, unsigned char priority);
+	void Send(unsigned short packet_id, BitStream bitstream, unsigned char priority);
 	void SetPrefix(const char* val);
 private:
 	bool is_connected = false;
@@ -31,5 +33,10 @@ private:
 
 	char prefix[20] = { 0 };
 	int prefix_len = 0;
+
+	unsigned char used_id_last = 0;
+	unsigned long used_ids[20] = { 0 };
+
+	unsigned long last_sent = 0;
 };
 

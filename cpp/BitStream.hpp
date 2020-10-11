@@ -1,44 +1,57 @@
+// by imring
 #pragma once
+
 #include <vector>
-#include <assert.h>
+#include <string>
 
-class BitStream
-{
+class BitStream {
 public:
-	//BitStream(const unsigned char* tmp_data, const size_t len) { SetData(tmp_data, len); }
+	BitStream(const char* _data, const size_t len) { set_data(_data, len); }
+	BitStream() = default;
 
-	void SetDataLen(size_t len);
-	void SetData(const unsigned char* tmp_data, const size_t len);
+	void set_data(const char* _data, const size_t len) {
+		data.resize(len);
+		memcpy(data.data(), _data, len);
+	}
 
-	inline unsigned char* GetData() const { return data; }
-	inline size_t GetDataLen() const { return data_len; }
+	inline const unsigned char* get_data() const { return data.data(); }
+	inline size_t get_data_size() const { return data.size(); }
+	inline void set_data_size(const size_t size) { data.resize(size); }
 
 	template<typename T>
-	T Read();
-	void Read(unsigned char* tmp_data, const size_t len);
+	inline T read() {
+		T value;
+		read(&value, sizeof(T));
+		return value;
+	}
+
+	void read(void* _data, const size_t len) {
+		//assert(_data && len + read_pointer <= data.size());
+		try {
+			if (_data && len + read_pointer > data.size()) 
+				throw data.size();
+			else if (_data != NULL)
+			{
+				memcpy(_data, data.data() + read_pointer, len);
+				read_pointer += len;
+			}
+		}
+		catch(size_t data_size) {
+			printf("Data Size is Out of Range: %d", data_size);
+		}
+	}
 
 	template<typename T>
-	void Write(T value);
-	void Write(unsigned char* tmp_data, const size_t len);
-private:
+	inline void write(T value) { write(&value, sizeof(T)); }
+
+	void write(const void* _data, const size_t len) {
+		data.resize(data.size() + len);
+		memcpy(data.data() + write_pointer, _data, len);
+		write_pointer += len;
+	}
+
 	size_t read_pointer = 0;
 	size_t write_pointer = 0;
-	size_t data_len = 0;
-	unsigned char* data = nullptr;
-	
-	void AddBytesToData(size_t len);
+private:
+	std::vector<unsigned char> data;
 };
-
-template<typename T>
-T BitStream::Read()
-{
-	T value;
-	Read(&value, sizeof(T));
-	return value;
-}
-
-template<typename T>
-void BitStream::Write(T value)
-{
-	Write(&value, sizeof(T));
-}
