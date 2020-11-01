@@ -30,7 +30,6 @@ end
 
 function bcoder.decode(v_type, v)
   if type(v_type) ~= "string" then return false end
-  if not v then return ffi.cast(v_type .. "*", 0)[0] end
   return get_value(v_type, v)
 end
 
