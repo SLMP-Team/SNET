@@ -1,1 +1,2 @@
-# SNET - cross-platform, open source, network library
+# SImple Network
+SNET - cross-platform, open source, network library
