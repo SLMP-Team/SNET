@@ -2,12 +2,12 @@ local ffi = require("ffi")
 local bcoder = {}
 
 -- Types Definition
-BS_INT8 = "signed char"
-BS_INT16 = "signed short"
-BS_INT32 = "signed long"
-BS_UINT8 = "unsigned char"
-BS_UINT16 = "unsigned short"
-BS_UINT32 = "unsigned long"
+BS_INT8 = "int8_t"
+BS_INT16 = "int16_t"
+BS_INT32 = "int32_t"
+BS_UINT8 = "uint8_t"
+BS_UINT16 = "uint16_t"
+BS_UINT32 = "uint32_t"
 BS_FLOAT = "float"
 BS_BOOLEAN = "bool"
 BS_STRING = "string"
@@ -30,6 +30,7 @@ end
 
 function bcoder.decode(v_type, v)
   if type(v_type) ~= "string" then return false end
+  if not v then return ffi.cast(v_type .. "*", 0)[0] end
   return get_value(v_type, v)
 end
 
