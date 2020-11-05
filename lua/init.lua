@@ -17,7 +17,7 @@ SNET_LOW_PRIORITY = 1
 SNET_BYPASS_PRIORITY = 0
 
 -- SNET Service Packet IDs
-SNET_CONFIRM_PRIORITY = 4294967294
+SNET_CONFIRM_PRIORITY = 0xFFFFFFFF
 
 snet.bstream = require("snet.bstream")
 local server_class = require("snet.server")
