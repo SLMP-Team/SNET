@@ -33,6 +33,12 @@ local function receive_packet(object)
   local packet_id = data:read(BS_UINT32)
   local priority = data:read(BS_UINT8)
 
+	if priority > 0 then
+    local new_bs = bstream.new()
+    new_bs:write(BS_UINT32, unique_id)
+    object:send(SNET_CONFIRM_PRIORITY, new_bs, SNET_BYPASS_PRIORITY)
+  end
+
   for i, v in ipairs(object.last_ids) do
     if v == unique_id then
       return false
@@ -48,12 +54,6 @@ local function receive_packet(object)
     if v[1] == 'onReceivePacket' then
       v[2](packet_id, bstream.new(clean_data))
     end
-  end
-
-  if priority > 0 then
-    local new_bs = bstream.new()
-    new_bs:write(BS_UINT32, unique_id)
-    object:send(SNET_CONFIRM_PRIORITY, new_bs, SNET_BYPASS_PRIORITY)
   end
 
   if packet_id == SNET_CONFIRM_PRIORITY then
