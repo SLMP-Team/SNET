@@ -11,11 +11,6 @@ bstream_class.read_ptr = 1
 function bstream_class:write(v_type, v)
   if type(v_type) ~= 'string' then return false end
 
-  if v_type == BS_BOOLEAN then
-    v_type = BS_UINT8
-    v = v and 1 or 0
-  end
-
   local before = self.bytes:sub(1, self.write_ptr - 1)
   local after = self.bytes:sub(self.write_ptr, #self.bytes)
 
@@ -29,18 +24,12 @@ end
 function bstream_class:read(v_type, v_len)
   if type(v_type) ~= 'string' then return false end
 
-  local was_bool = false
-  if v_type == BS_BOOLEAN then
-    v_type = BS_UINT8
-    was_bool = true
-  end
-
   local result = 0
   if v_type == BS_STRING then result = self.bytes:sub(self.read_ptr, self.read_ptr + v_len - 1)
   else result = bcoder.decode(v_type, self.bytes:sub(self.read_ptr, self.read_ptr + ffi.sizeof(v_type) - 1)) end
 
   self.read_ptr = self.read_ptr + (v_type == BS_STRING and v_len or ffi.sizeof(v_type))
-  return was_bool and (result == 1) or result
+  return result
 end
 
 function bstream.new(bytes)
