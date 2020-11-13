@@ -1,9 +1,9 @@
 local snet = {}
 local socket = require("socket")
 
-snet._VERSION = "SNET v.1.0.0"
+snet._VERSION = "SNET v.1.0.1"
 snet._COPYRIGHT = "Copyright © 2020 Pavel Akulichev"
-snet._DESCRIPTION = "Simple Network Module v.1.0.0"
+snet._DESCRIPTION = "Simple Network Module v.1.0.1"
 
 -- SNET Statuses Definition
 SNET_DISCONNECTED = 0
@@ -18,6 +18,7 @@ SNET_BYPASS_PRIORITY = 0
 
 -- SNET Service Packet IDs
 SNET_CONFIRM_PRIORITY = 0xFFFFFFFF
+SNET_BLOCK_PACKET = 0xFFFFFFFF - 1
 
 snet.bstream = require("snet.bstream")
 local server_class = require("snet.server")

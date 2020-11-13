@@ -8,14 +8,68 @@ server.last_ids = {}
 server.events = {}
 server.clients = {}
 server.packets = {}
+server.blacklist = {}
 
 function server:add_event_handler(event, callback)
   table.insert(self.events, {event, callback})
 end
 
+local function is_blacklisted(handle, address)
+  if type(address) ~= 'string' then
+    return false
+  end
+
+  for i, v in ipairs(handle.blacklist) do
+    if v[1] == address then
+      return true, i
+    end
+  end
+
+  return false
+end
+
+function server:block_address(address)
+  if type(address) ~= 'string' then
+    return false
+  end
+
+  for i, v in ipairs(self.blacklist) do
+    if v[1] == address then
+      return false
+    end
+  end
+
+  table.insert(self.blacklist, {address, 0})
+  return true
+end
+
+function server:unblock_address(address)
+  if type(address) ~= 'string' then
+    return false
+  end
+
+  for i, v in ipairs(self.blacklist) do
+    if v[1] == address then
+      table.remove(self.blacklist, i)
+      return true
+    end
+  end
+
+  return false
+end
+
 local function get_packet(object)
   local data, address, port = object.socket:receivefrom()
   if data and address and port then
+    local is_block, list_id = is_blacklisted(object, tostring(address))
+    if is_block then
+      if os.time() >= object.blacklist[list_id][2] then
+        object.blacklist[list_id][2] = os.time() + 60
+        object:send(SNET_BLOCK_PACKET, bstream.new(),
+        SNET_BYPASS_PRIORITY, address, port)
+      end
+      return false
+    end
     if data:sub(1, 1):byte() ~= 0x0 then return false end
     data = data:sub(2, #data)
     return data, address, port
